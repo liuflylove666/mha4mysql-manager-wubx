@@ -299,7 +299,7 @@ sub reject_update($$) {
     $log->info(
       "  $command --orig_master_password=xxx --new_master_password=xxx");
     $command .=
-" --orig_master_password=$orig_master->{escaped_password} --new_master_password=$new_master->{escaped_password}";
+" --orig_master_password=$orig_master->{escaped_password} --new_master_password=$new_master->{escaped_password} --app_vip=$orig_master->{app_vip} --netmask=$orig_master->{netmask} --interface=$orig_master->{interface}";
     my ( $high, $low ) = MHA::ManagerUtil::exec_system($command);
 
     if ( $high == 0 && $low == 0 ) {
@@ -417,7 +417,7 @@ sub switch_master($$$$) {
     $log->info(
       "  $command --orig_master_password=xxx --new_master_password=xxx");
     $command .=
-" --orig_master_password=$orig_master->{escaped_password} --new_master_password=$new_master->{escaped_password}";
+" --orig_master_password=$orig_master->{escaped_password} --new_master_password=$new_master->{escaped_password} --app_vip=$orig_master->{app_vip} --netmask=$orig_master->{netmask} --interface=$orig_master->{interface}";
     my ( $high, $low ) = MHA::ManagerUtil::exec_system($command);
 
     if ( $high == 0 && $low == 0 ) {

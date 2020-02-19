@@ -217,7 +217,7 @@ sub check_scripts($) {
   my $current_master = shift;
   if ( $current_master->{master_ip_failover_script} ) {
     my $command =
-"$current_master->{master_ip_failover_script} --command=status --ssh_user=$current_master->{ssh_user} --orig_master_host=$current_master->{hostname} --orig_master_ip=$current_master->{ip} --orig_master_port=$current_master->{port}";
+"$current_master->{master_ip_failover_script} --command=status --ssh_user=$current_master->{ssh_user} --orig_master_host=$current_master->{hostname} --orig_master_ip=$current_master->{ip} --orig_master_port=$current_master->{port} --app_vip=$current_master->{app_vip} --netmask=$current_master->{netmask} --interface=$current_master->{interface}";
     $command .= $current_master->get_ssh_args_if( 1, "orig", 1 );
     $log->info("Checking master_ip_failover_script status:");
     $log->info("  $command");

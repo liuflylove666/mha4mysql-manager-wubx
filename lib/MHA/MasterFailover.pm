@@ -328,7 +328,7 @@ sub force_shutdown_internal($) {
 
   if ( $dead_master->{master_ip_failover_script} ) {
     my $command =
-"$dead_master->{master_ip_failover_script} --orig_master_host=$dead_master->{hostname} --orig_master_ip=$dead_master->{ip} --orig_master_port=$dead_master->{port}";
+"$dead_master->{master_ip_failover_script} --orig_master_host=$dead_master->{hostname} --orig_master_ip=$dead_master->{ip}  --orig_master_port=$dead_master->{port} --app_vip=$dead_master->{app_vip}  --netmask=$dead_master->{netmask} --interface=$dead_master->{interface}";
     if ( $_real_ssh_reachable == 1 ) {
       $command .=
         " --command=stopssh" . " --ssh_user=$dead_master->{ssh_user} ";
@@ -1418,16 +1418,16 @@ sub recover_slave {
 sub apply_binlog_to_master($) {
   my $target   = shift;
   my $err_file = "$g_workdir/mysql_from_binlog.err";
+  my $command = "";
   #在GTID模式下只能是少丢，原失处理的GTID日志重放会报错
-  if ($is_gtid_auto_pos_enabled){
-  my $command =
-  "mysqlbinlog $_diff_binary_log | mysql -f --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
-  }else{
-        my $command =
-  "cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
- }
-
-
+  if ($_server_manager->is_gtid_auto_pos_enabled()) {
+    $command .= "mysqlbinlog --no-defaults $_diff_binary_log | mysql -f --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+  }
+  else {
+    $command .= "cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+  }
+  
+  $log->info("xxxxxxxxxxxxrecovery:$command");
   $log->info("Checking if super_read_only is defined and turned on..");
   my ($super_read_only_enabled, $dbh) = 
           MHA::SlaveUtil::check_if_super_read_only($target->{hostname}, $target->{ip}, $target->{port}, $target->{user}, $target->{password});
@@ -1519,10 +1519,11 @@ sub recover_master_gtid_internal($$$) {
     $relay_master_log_file = $target->{Relay_Master_Log_File};
     $exec_master_log_pos   = $target->{Exec_Master_Log_Pos};
   }
-#first use master binlog to recover new master
-  if ($_has_saved_binlog){
+  #first use master binlog to recover new master
+  if ($_has_saved_binlog) {
     apply_binlog_to_master($target);
- }elsif(
+  }
+  elsif (
     save_from_binlog_server(
       $relay_master_log_file, $exec_master_log_pos, $binlog_server_ref
     )
@@ -1607,7 +1608,7 @@ sub recover_master($$$$) {
     $command .= $new_master->get_ssh_args_if( 2, "new", 1 );
     $log->info("Executing master IP activate script:");
     $log->info("  $command --new_master_password=xxx");
-    $command .= " --new_master_password=$new_master->{escaped_password}";
+    $command .= " --new_master_password=$new_master->{escaped_password} --app_vip=$dead_master->{app_vip} --netmask=$dead_master->{netmask} --interface=$dead_master->{interface}";
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
     if ( $high == 0 && $low == 0 ) {
       $log->info(" OK.");
@@ -2137,13 +2138,13 @@ sub do_master_failover {
     $log->info("* Phase 3.1: Getting Latest Slaves Phase..\n");
     $log->info();
     check_set_latest_slaves();
-#gtid mode maybe save binlog from master add  wubx@zhishutang.com
-#    if ( !$_server_manager->is_gtid_auto_pos_enabled() ) {
-      $log->info();
-      $log->info("* Phase 3.2: Saving Dead Master's Binlog Phase..\n");
-      $log->info();
-      save_master_binlog($dead_master);
-#    }
+
+    #if ( $_server_manager->is_gtid_auto_pos_enabled() ) {
+    $log->info();
+    $log->info("* Phase 3.2: Saving Dead Master's Binlog Phase..\n");
+    $log->info();
+    save_master_binlog($dead_master);
+    # }
 
     $log->info();
     $log->info("* Phase 3.3: Determining New Master Phase..\n");

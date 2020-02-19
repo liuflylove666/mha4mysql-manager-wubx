@@ -1,0 +1,52 @@
+[server default]
+log_level=debug
+user=root
+password=Abc_123456
+manager_workdir=/home/mysql_mha
+manager_log=/home/mysql_mha/manager.log
+remote_workdir=/home/mysql_mha
+#可以使用ssh登录的用户
+#ssh_user=root
+#ssh_port=56000
+# 用于主从复制的MySQL用户和密码
+repl_user=repl
+repl_password=ABCabc
+# 指定间隔多少秒检测一次
+ping_interval=1
+# 指定master节点存放binlog日志文件的目录
+#master_binlog_dir=/var/lib/mysql
+# 指定一个脚本，该脚本实现了在主从切换之后，将虚拟IP漂移到新的Master上
+master_ip_online_change_script=/usr/bin/master_ip_online_change
+master_ip_failover_script=/usr/bin/master_ip_failover
+# 指定用于二次检查节点状态的脚本
+#secondary_check_script=/usr/bin/masterha_secondary_check -s 10.43.1.150 -s 10.43.1.151 -s 10.43.1.152
+secondary_check_script=/usr/bin/masterha_secondary_check -s 10.43.1.151 -s 10.43.1.152 --user=root --port=56000  --master_host=10.43.1.150 --master_port=3308
+##新增VIP功能
+app_vip=10.43.1.153
+netmask=24
+interface=eth0:88
+
+# 配置集群中的节点信息
+[server1]
+hostname=10.43.1.150
+master_binlog_dir=/data/mysql3308
+candidate_master=1
+ssh_user=root
+ssh_port=56000
+port=3308
+
+[server2]
+hostname=10.43.1.151
+master_binlog_dir=/data/mysql3308
+ssh_user=root
+ssh_port=56000
+port=3308
+no_master=1
+
+[server3]
+hostname=10.43.1.152
+master_binlog_dir=/data/mysql3308
+candidate_master=1
+ssh_user=root
+ssh_port=56000
+port=3308

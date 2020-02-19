@@ -31,7 +31,7 @@ use MHA::NodeUtil;
 use MHA::ManagerConst;
 
 my @PARAM_ARRAY =
-  qw/ hostname ip port ssh_host ssh_ip ssh_port ssh_connection_timeout ssh_options node_label candidate_master no_master ignore_fail skip_init_ssh_check skip_reset_slave user password repl_user repl_password disable_log_bin master_pid_file handle_raw_binlog ssh_user remote_workdir master_binlog_dir log_level manager_workdir manager_log check_repl_delay check_repl_filter latest_priority multi_tier_slave ping_interval ping_type secondary_check_script master_ip_failover_script master_ip_online_change_script shutdown_script report_script init_conf_load_script client_bindir client_libdir use_gtid_auto_pos/;
+  qw/ hostname ip port ssh_host ssh_ip ssh_port ssh_connection_timeout ssh_options node_label candidate_master no_master ignore_fail skip_init_ssh_check skip_reset_slave user password repl_user repl_password disable_log_bin master_pid_file handle_raw_binlog ssh_user remote_workdir master_binlog_dir log_level manager_workdir manager_log check_repl_delay check_repl_filter latest_priority multi_tier_slave ping_interval ping_type secondary_check_script master_ip_failover_script master_ip_online_change_script shutdown_script report_script init_conf_load_script client_bindir client_libdir use_gtid_auto_pos app_vip netmask interface/;
 my %PARAM;
 for (@PARAM_ARRAY) { $PARAM{$_} = 1; }
 
@@ -68,6 +68,20 @@ sub parse_server {
     $value{port} = $default->{port};
     $value{port} = 3306 unless ( $value{port} );
   }
+
+  $value{app_vip} = $param_arg->{app_vip};
+  if ( !defined( $value{app_vip} ) ) {
+    $value{app_vip} = $default->{app_vip};
+  }
+  $value{netmask} = $param_arg->{netmask};
+  if ( !defined( $value{netmask} ) ) {
+    $value{netmask} = $default->{netmask};
+  }
+  $value{interface} = $param_arg->{interface};
+  if ( !defined( $value{interface} ) ) {
+    $value{interface} = $default->{interface};
+  }
+
 
   $value{ssh_host} = $param_arg->{ssh_host};
   if ( !defined( $value{ssh_host} ) ) {
