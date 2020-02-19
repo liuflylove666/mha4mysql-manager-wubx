@@ -1418,13 +1418,13 @@ sub recover_slave {
 sub apply_binlog_to_master($) {
   my $target   = shift;
   my $err_file = "$g_workdir/mysql_from_binlog.err";
-  my $command = "";
+  my $command = "source /etc/profie &&";
   #在GTID模式下只能是少丢，原失处理的GTID日志重放会报错
   if ($_server_manager->is_gtid_auto_pos_enabled()) {
-    $command .= "mysqlbinlog --no-defaults $_diff_binary_log | mysql -f --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+    $command .= " mysqlbinlog --no-defaults $_diff_binary_log | mysql -f --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
   }
   else {
-    $command .= "cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+    $command .= " cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
   }
   
   $log->info("xxxxxxxxxxxxrecovery:$command");
