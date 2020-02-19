@@ -524,9 +524,14 @@ sub validate_slaves($$$) {
   $log->info("Checking slave configurations..");
 
   foreach (@slaves) {
+    my $dbhelper  = $_->{dbhelper};
     if ( $_->{read_only} ne '1' ) {
       $log->info(
         sprintf( " read_only=1 is not set on slave %s.\n", $_->get_hostinfo() )
+      );
+      $dbhelper->enable_read_only();
+      $log->info(
+        sprintf( " set read_only=1 is  on slave %s.\n", $_->get_hostinfo() )
       );
     }
     if ( $_->{relay_purge} ne '0' && !$_->{has_gtid} ) {
