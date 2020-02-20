@@ -38,15 +38,15 @@ port=3308
 [server2]
 hostname=10.43.1.151
 master_binlog_dir=/data/mysql3308
+candidate_master=1
 ssh_user=root
 ssh_port=56000
 port=3308
-no_master=1
 
 [server3]
 hostname=10.43.1.152
 master_binlog_dir=/data/mysql3308
-candidate_master=1
+no_master=1
 ssh_user=root
 ssh_port=56000
 port=3308
