@@ -2090,6 +2090,9 @@ sub send_report {
       if ( $new_master && $new_master->{hostname} && $new_master->{activated} )
       {
         $command .= " --new_master_host=$new_master->{hostname} ";
+      }
+      if ( $new_slaves )
+      {
         $command .= " --new_slave_hosts=$new_slaves ";
       }
       $command .= " --conf=$g_config_file ";
