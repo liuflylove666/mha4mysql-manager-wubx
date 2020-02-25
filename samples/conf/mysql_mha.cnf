@@ -21,6 +21,7 @@ master_ip_failover_script=/usr/bin/master_ip_failover
 # 指定用于二次检查节点状态的脚本
 #secondary_check_script=/usr/bin/masterha_secondary_check -s 10.43.1.150 -s 10.43.1.151 -s 10.43.1.152
 secondary_check_script=/usr/bin/masterha_secondary_check -s 10.43.1.151 -s 10.43.1.152 --user=root --port=56000  --master_host=10.43.1.150 --master_port=3308
+#report_script=/usr/bin/send_report
 ##新增VIP功能
 app_vip=10.43.1.153
 netmask=24

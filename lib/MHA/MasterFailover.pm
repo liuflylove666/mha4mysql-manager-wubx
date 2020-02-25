@@ -328,7 +328,7 @@ sub force_shutdown_internal($) {
 
   if ( $dead_master->{master_ip_failover_script} ) {
     my $command =
-"$dead_master->{master_ip_failover_script} --orig_master_host=$dead_master->{hostname} --orig_master_ip=$dead_master->{ip}  --orig_master_port=$dead_master->{port} --app_vip=$dead_master->{app_vip}  --netmask=$dead_master->{netmask} --interface=$dead_master->{interface}";
+"$dead_master->{master_ip_failover_script} --orig_master_host=$dead_master->{hostname} --orig_master_ip=$dead_master->{ip} --orig_master_port=$dead_master->{port}  --app_vip=$dead_master->{app_vip}  --netmask=$dead_master->{netmask} --interface=$dead_master->{interface}";
     if ( $_real_ssh_reachable == 1 ) {
       $command .=
         " --command=stopssh" . " --ssh_user=$dead_master->{ssh_user} ";
@@ -763,6 +763,8 @@ sub save_master_binlog_internal {
     );
   }
 
+
+  $log->info("has_saved_binlogvvvvvvvvvvvvv:$_has_saved_binlog");
   if ($_has_saved_binlog) {
     my @alive_slaves = $_server_manager->get_alive_slaves();
     foreach my $slave (@alive_slaves) {
@@ -1284,6 +1286,7 @@ sub gen_diff_from_exec_to_read {
     my ( $high, $low ) =
       exec_ssh_child_cmd( $ssh_user_host, $target->{ssh_port}, $command,
       $logger, "$g_workdir/$target->{hostname}_$target->{port}.work" );
+    $logger->info("vvvvvvvvvvvvvvvvvvcommand_RC high: $high low:$low ");
     if ( $high eq '0' && $low eq '0' ) {
       return 0;
     }
@@ -1419,15 +1422,16 @@ sub apply_binlog_to_master($) {
   my $target   = shift;
   my $err_file = "$g_workdir/mysql_from_binlog.err";
   my $command = "";
-  #在GTID模式下只能是少丢，原失处理的GTID日志重放会报错
+
   if ($_server_manager->is_gtid_auto_pos_enabled()) {
-    $command .= " mysqlbinlog --no-defaults $_diff_binary_log | mysql -f --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+    $command .= "mysqlbinlog --no-defaults --skip-gtids=true $_diff_binary_log | mysql -f --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
   }
   else {
-    $command .= " cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+    $command .= "cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
   }
-  
+
   $log->info("xxxxxxxxxxxxrecovery:$command");
+  $log->info("On the $target->{ip}");
   $log->info("Checking if super_read_only is defined and turned on..");
   my ($super_read_only_enabled, $dbh) = 
           MHA::SlaveUtil::check_if_super_read_only($target->{hostname}, $target->{ip}, $target->{port}, $target->{user}, $target->{password});
@@ -1439,33 +1443,36 @@ sub apply_binlog_to_master($) {
 
   $log->info("Applying differential binlog $_diff_binary_log ..");
 
-  if ( my $rc = system($command) ) {
-    my ( $high, $low ) = MHA::NodeUtil::system_rc($rc);
-    $log->error("FATAL: applying log files failed with rc $high:$low!");
-    $log->error(
-      sprintf(
-        "Error logs from %s:%s (the last 200 lines)..",
-        $target->{hostname}, $err_file
-      )
-    );
-    $log->error(`tail -200 $err_file`);
+  if ( -e $_diff_binary_log ) {
 
+    if ( my $rc = system($command) ) {
+      my ( $high, $low ) = MHA::NodeUtil::system_rc($rc);
+      $log->error("FATAL: applying log files failed with rc $high:$low!");
+      $log->error(
+        sprintf(
+          "Error logs from %s:%s (the last 200 lines)..",
+          $target->{hostname}, $err_file
+        )
+      );
+      $log->error(`tail -200 $err_file`);
+  
+      if ($super_read_only_enabled) {
+        $log->info("Enabling super_read_only again after failure\n");
+        MHA::SlaveUtil::enable_super_read_only($dbh);
+      }
+  
+      croak;
+    }
+    else {
+      $log->info("Differential log apply from binlog server succeeded.");
+    }
+  
     if ($super_read_only_enabled) {
-      $log->info("Enabling super_read_only again after failure\n");
+      $log->info("Enabling super_read_only again after applying\n");
       MHA::SlaveUtil::enable_super_read_only($dbh);
     }
-
-    croak;
+    return 0;
   }
-  else {
-    $log->info("Differential log apply from binlog server succeeded.");
-  }
-
-  if ($super_read_only_enabled) {
-    $log->info("Enabling super_read_only again after applying\n");
-    MHA::SlaveUtil::enable_super_read_only($dbh);
-  }
-  return 0;
 }
 
 sub recover_master_gtid_internal($$$) {
@@ -1520,10 +1527,10 @@ sub recover_master_gtid_internal($$$) {
     $exec_master_log_pos   = $target->{Exec_Master_Log_Pos};
   }
   #first use master binlog to recover new master
-  if ($_has_saved_binlog) {
+  if ($_has_saved_binlog){
+    $log->info("Recover binlog from dead_master...");
     apply_binlog_to_master($target);
-  }
-  elsif (
+  } elsif (
     save_from_binlog_server(
       $relay_master_log_file, $exec_master_log_pos, $binlog_server_ref
     )
@@ -1608,7 +1615,7 @@ sub recover_master($$$$) {
     $command .= $new_master->get_ssh_args_if( 2, "new", 1 );
     $log->info("Executing master IP activate script:");
     $log->info("  $command --new_master_password=xxx");
-    $command .= " --new_master_password=$new_master->{escaped_password} --app_vip=$dead_master->{app_vip} --netmask=$dead_master->{netmask} --interface=$dead_master->{interface}";
+    $command .= " --new_master_password=$new_master->{escaped_password}  --app_vip=$dead_master->{app_vip} --netmask=$dead_master->{netmask} --interface=$dead_master->{interface}";
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
     if ( $high == 0 && $low == 0 ) {
       $log->info(" OK.");
@@ -2142,12 +2149,12 @@ sub do_master_failover {
     $log->info();
     check_set_latest_slaves();
 
-    #if ( $_server_manager->is_gtid_auto_pos_enabled() ) {
+    #if ( !$_server_manager->is_gtid_auto_pos_enabled() ) {
     $log->info();
-    $log->info("* Phase 3.2: Saving Dead Master's Binlog Phase..\n");
+    $log->info("* Phase 3.2: Saving Dead Master's Binlog Phasevvvvvvvvvvvvvv..\n");
     $log->info();
     save_master_binlog($dead_master);
-    # }
+    #}
 
     $log->info();
     $log->info("* Phase 3.3: Determining New Master Phase..\n");
